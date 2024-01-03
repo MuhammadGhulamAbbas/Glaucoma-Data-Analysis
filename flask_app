@@ -1,0 +1,173 @@
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output
+import pandas as pd
+import plotly.express as px
+import seaborn as sns
+import matplotlib.pyplot as plt
+from io import BytesIO
+import base64
+
+# Load data
+filepath = "/home/jwdahmed/mysite/glaucoma_dataset.csv"
+data = pd.read_csv(filepath)
+
+# Initialize the Dash app
+app = dash.Dash(__name__)
+
+# Define utility function for creating distribution plots
+def create_distribution_plot(data, x, nbins=30, marginal='rug', title=''):
+    fig = px.histogram(
+        data,
+        x=x,
+        nbins=nbins,
+        marginal=marginal,
+        title=title,
+        labels={'value': x}
+    )
+    return fig
+
+# set the style of seaborn (better aesthetics)
+sns.set(style="whitegrid")
+
+# Define layout for Univariate Analysis
+age_distribution = data['Age']
+gender_distribution = data['Gender'].value_counts()
+
+fig_age_distribution = create_distribution_plot(
+    age_distribution,
+    x='Age',
+    title='Distribution Plot of Age'
+)
+
+fig_gender_distribution = px.bar(
+    x=gender_distribution.index,
+    y=gender_distribution.values,
+    labels={'x': 'Gender', 'y': 'Count'},
+    title='Gender Distribution'
+)
+
+univariate_layout = html.Div([
+    html.H1("Univariate Analysis ", style={'text-align': 'center', 'color': '#00203FFF', 'font-family': 'Arial, sans-serif'}),
+    html.Br(),
+    dcc.Graph(id='age_distribution_graph', figure=fig_age_distribution),
+    dcc.Graph(id='gender_distribution_graph', figure=fig_gender_distribution)
+])
+
+# Define layout for Bivariate Analysis
+df = data.copy()
+
+# trend plot using Matplotlib and Seaborn
+plt.figure(figsize=(10, 6))
+sns.lineplot(x='Diagnosis', y='Age', data=df, marker='o', ci=None)
+plt.title('Trend Plot of Age for Different Diagnoses')
+plt.xlabel('Diagnosis')
+plt.ylabel('Average Age')
+buffer_trend = BytesIO()
+plt.savefig(buffer_trend, format='png')
+buffer_trend.seek(0)
+image_uri_trend = base64.b64encode(buffer_trend.read()).decode('utf-8')
+
+# count plot using Plotly Express
+fig_count_plot = px.histogram(
+    df,
+    x='Gender',
+    color='Diagnosis',
+    barmode='group',
+    title='Count Plot of Diagnosis Frequency by Gender',
+    labels={'Gender': 'Gender', 'value': 'Frequency'},
+)
+
+bivariate_layout = html.Div([
+    html.H1("Bivariate Analysis", style={'text-align': 'center', 'color': '#00203FFF', 'font-family': 'Arial, sans-serif'}),
+    html.Br(),
+
+    # Trend Plot
+    html.Img(src=f'data:image/png;base64,{image_uri_trend}', style={'width': '100%'}),
+
+    html.Br(),
+
+    # Count Plot
+    dcc.Graph(id='count_plot', figure=fig_count_plot)
+])
+
+# Define layout for Trivariate Analysis
+fig_scatter = px.scatter(
+    df,
+    x='Age',
+    y='Intraocular Pressure (IOP)',
+    color='Diagnosis',
+    title='Scatter Plot between Age and IOP for Different Diagnoses',
+    labels={'Age': 'Age', 'Intraocular Pressure (IOP)': 'Intraocular Pressure (IOP)'},
+    template='plotly_white'
+)
+
+trivariate_layout = html.Div([
+    html.H1("Trivariate Analysis", style={'text-align': 'center', 'color': '#00203FFF', 'font-family': 'Arial, sans-serif'}),
+    html.Br(),
+
+    dcc.Graph(id='scatter_plot', figure=fig_scatter)
+])
+
+homepage_layout = html.Div([
+    html.H1("WELCOME!", style={'text-align': 'center', 'color': '#00203FFF', 'font-family': 'Arial, sans-serif'}),
+    html.H1("Please click a link above to view the desired analysis", style={'text-align': 'center', 'color': '#00203FFF', 'font-family': 'Arial, sans-serif', 'font-size': '18px'}),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
+])
+
+# Define the main app layout
+app.layout = html.Div(style={'backgroundColor': '#FCF6F5FF'}, children=[
+    html.H1("GLAUCOMA DETECTON", style={'text-align': 'center',  'color': '#990011FF', 'font-family': 'Arial, sans-serif'}),
+    html.Hr(),
+    html.H2("Exploratory Data Analysis", style={'text-align': 'center',  'color': '#990011FF', 'font-family': 'Arial, sans-serif'}),
+    html.Br(),
+    dcc.Location(id='url'),
+    dcc.Link("Univariate Analysis", href='/univariate', style={'color': '#990011FF', 'font-family': 'Arial, sans-serif'}),
+    html.Br(),
+    html.Br(),
+    dcc.Link("Bivariate Analysis", href='/bivariate', style={'color': '#990011FF', 'font-family': 'Arial, sans-serif'}),
+    html.Br(),
+    html.Br(),
+    dcc.Link("Trivariate Analysis", href='/trivariate', style={'color': '#990011FF', 'font-family': 'Arial, sans-serif'}),
+    html.Br(),
+    html.Br(),
+    html.Hr(),
+    html.Div(id='page_content'),
+    html.Hr(),
+])
+
+# Define callback to update page content based on URL
+@app.callback(Output('page_content', 'children'),
+              Input('url', 'pathname'))
+def display_page_content(path):
+    if path == '/univariate':
+        return univariate_layout
+    elif path == '/bivariate':
+        return bivariate_layout
+    elif path == '/trivariate':
+        return trivariate_layout
+    else:
+        return homepage_layout
+
+# Run the app if this script is the main module
+# if __name__ == '__main__':
+#     app.run(debug=True)
